@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>小鸟飞游戏</title>
+    <style>
+        canvas {
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+<canvas width="800" height="600"></canvas>
+<script src="js/bird.js"></script>
+<script src="js/sky.js"></script>
+<script src="js/land.js"></script>
+<script src="js/pipe.js"></script>
+<script>
+    function loadImgs(imgArr, callback) {
+        var count = 0;
+        var imgList = {};
+        for (var i = 0; i < imgArr.length; i++) {
+            var img = new Image();
+            img.src = 'images/' + imgArr[i] + '.png';
+            imgList[imgArr[i]] = img;
+            img.onload = function () {
+                count++;
+                if (count == imgArr.length) {
+                    callback(imgList);
+                }
+            }
+        }
+    }
+    var h = 0, m = 0, s = 0;
+    function getTime(time) {
+        h = Math.floor(time / 60 / 60 / 1000);
+        m = Math.floor(time / 60 / 1000 - h * 60);
+        s = Math.floor(time / 1000 - m * 60 - h * 60 * 60);
+
+        h = h > 9 ? h : '0' + h;
+        m = m > 9 ? m : '0' + m;
+        s = s > 9 ? s : '0' + s;
+    }
+    function hint(){
+        ctx.save();
+        ctx.font = '30px 微软雅黑';
+        ctx.fillStyle = 'red';
+        ctx.fillText('游戏结束，F5重新开始',200,300);
+        ctx.restore();
+    }
+
+    var cs = document.querySelector('canvas');
+    var ctx = cs.getContext('2d');
+    var isStart = false;
+    var beginTime = 0;
+
+    loadImgs(['birds', 'sky', 'land', 'pipe1', 'pipe2'], function (imgList) {
+        var birdImg = imgList['birds'];
+        var skyImg = imgList['sky'];
+        var landImg = imgList['land'];
+        var topPipe = imgList['pipe2'];
+        var bottomPipe = imgList['pipe1'];
+
+        //创建小鸟
+        var bird = new Bird({
+            ctx: ctx,
+            birdImg: birdImg,
+            cX: 100,
+            cY: 100
+        });
+        var sTime = new Date();
+        var eTime = 0;
+
+        // 创建天空
+        var sky = new Sky({
+            ctx: ctx,
+            skyImg: skyImg,
+            skyX: 0,
+            skyY: 0
+        });
+        var sky1 = new Sky({
+            ctx: ctx,
+            skyImg: skyImg,
+            skyX: skyImg.width,
+            skyY: 0
+        });
+
+        //创建管道
+        var pipes = [];
+        for (var i = 0; i < 6; i++) {
+            var pipe = new Pipe({
+                ctx: ctx,
+                topPipe: topPipe,
+                bottomPipe: bottomPipe,
+                cX: 300 + i * (topPipe.width * 3)
+            });
+            pipes.push(pipe);
+        }
+
+
+        //创建陆地
+        var lands = [];
+        for (var i = 0; i < 4; i++) {
+            var land = new Land({
+                ctx: ctx,
+                landImg: landImg,
+                cX: i * landImg.width,
+                cY: cs.height - landImg.height
+            });
+            lands.push(land);
+        }
+
+        function fly() {
+            ctx.clearRect(0, 0, cs.width, cs.height);
+            ctx.beginPath();
+
+            //绘制天空代码
+            sky.drawSky();
+            sky1.drawSky();
+
+            /*绘制小鸟代码*/
+            eTime = new Date();
+            var offsetTime = eTime - sTime;
+            sTime = eTime;
+            bird.drawBird(offsetTime);
+
+            //绘制管道
+            for (var i = 0; i < pipes.length; i++) {
+                pipes[i].drawPipe();
+            }
+
+            //绘制陆地
+            for (var i = 0; i < lands.length; i++) {
+                lands[i].drawLand();
+            }
+
+            //显示持续时间
+            var duration = eTime - beginTime;
+            getTime(duration);
+            ctx.save();
+            ctx.font = '20px 微软雅黑';
+            ctx.fillStyle = '#000';
+            if(isStart){
+                ctx.fillText('' + h + ' : ' + m + ' : ' + s + '', 0, 20);
+            }else {
+                ctx.fillText('00 : 00 : 00', 0, 20);
+            }
+            ctx.restore();
+
+
+            //判断是否撞到管道
+            if (ctx.isPointInPath(bird.cX + bird.bW / 2, bird.cY + bird.bH / 2)) {
+                hint();
+                return
+            }
+
+
+            //判断是否超出界限
+            if (bird.cY > cs.height - landImg.height - birdImg.height || bird.cY < 0) {
+                hint();
+                return;
+            }
+
+
+            if (isStart) {
+                window.requestAnimationFrame(fly);
+            }
+
+        }
+
+        fly();
+        ctx.save();
+        ctx.font = '30px 微软雅黑';
+        ctx.fillStyle = 'orange';
+        ctx.fillText('点击开始游戏', 300, 250);
+        ctx.restore();
+
+        cs.onclick = function () {
+            if (!isStart) {
+                isStart = true;
+                sTime = new Date();
+                beginTime = sTime;
+                fly();
+            } else {
+                bird.bSpeed = -0.25;
+            }
+        };
+    });
+
+</script>
+
+</body>
+</html>
